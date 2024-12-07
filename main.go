@@ -6,7 +6,6 @@ import (
 	"blog_aggregator/internal/config"
 	"blog_aggregator/internal/database"
 	"database/sql"
-	"fmt"
 	_ "github.com/lib/pq"
 	"log"
 	"os"
@@ -31,6 +30,7 @@ func main() {
 	commands.Register("login", handlers.Login)
 	commands.Register("register", handlers.Register)
 	commands.Register("reset", handlers.Reset)
+	commands.Register("users", handlers.ListUsers)
 
 	args := os.Args[1:]
 	if len(args) == 0 {
@@ -48,6 +48,4 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error executing command: %v", err)
 	}
-
-	fmt.Println("Command executed successfully")
 }
