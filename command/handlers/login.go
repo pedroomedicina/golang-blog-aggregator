@@ -3,6 +3,7 @@ package handlers
 import (
 	"blog_aggregator/command"
 	"blog_aggregator/internal/config"
+	"context"
 	"errors"
 	"fmt"
 )
@@ -13,7 +14,13 @@ func Login(s *config.State, cmd command.Command) error {
 	}
 
 	username := cmd.Arguments[0]
-	err := s.Config.SetUser(username)
+
+	user, err := s.Db.GetUser(context.Background(), username)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %v", err)
+	}
+
+	err = s.Config.SetUser(user.Name)
 	if err != nil {
 		return fmt.Errorf("failed to set user %w", err)
 	}

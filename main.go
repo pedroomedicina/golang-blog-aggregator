@@ -4,7 +4,10 @@ import (
 	"blog_aggregator/command"
 	"blog_aggregator/command/handlers"
 	"blog_aggregator/internal/config"
+	"blog_aggregator/internal/database"
+	"database/sql"
 	"fmt"
+	_ "github.com/lib/pq"
 	"log"
 	"os"
 )
@@ -16,8 +19,17 @@ func main() {
 	}
 
 	state := config.NewState(&configuration)
+	db, err := sql.Open("postgres", state.Config.DBURL)
+	if err != nil {
+		log.Fatalf("Error opening database connection: %v", err)
+	}
+
+	dbQueries := database.New(db)
+	state.SetDb(dbQueries)
+
 	commands := command.NewCommands()
 	commands.Register("login", handlers.Login)
+	commands.Register("register", handlers.Register)
 
 	args := os.Args[1:]
 	if len(args) == 0 {
