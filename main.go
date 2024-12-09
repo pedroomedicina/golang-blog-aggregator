@@ -31,6 +31,7 @@ func main() {
 	commands.Register("register", handlers.Register)
 	commands.Register("reset", handlers.Reset)
 	commands.Register("users", handlers.ListUsers)
+	commands.Register("agg", handlers.Aggregate)
 
 	args := os.Args[1:]
 	if len(args) == 0 {
