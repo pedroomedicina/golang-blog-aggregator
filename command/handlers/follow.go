@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func FollowFeed(s *config.State, cmd command.Command) error {
+func FollowFeed(s *config.State, cmd command.Command, user database.User) error {
 	if len(cmd.Arguments) == 0 {
 		return errors.New("login command expects a single argument: feed_url")
 	}
@@ -24,21 +24,17 @@ func FollowFeed(s *config.State, cmd command.Command) error {
 	}
 
 	now := time.Now()
-	currentUser, err := s.Db.GetUser(context.Background(), s.Config.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("failed to get current user: %v", err)
-	}
 	feedFollow, err := s.Db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{
 		CreatedAt: now,
 		UpdatedAt: now,
-		UserID:    currentUser.ID,
+		UserID:    user.ID,
 		FeedID:    feed.ID,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create feed follow: %v", err)
 	}
 
-	fmt.Printf("Created feed follow successfully:\nFeed name: %s\n User: %s\n", feedFollow.FeedName, currentUser.Name)
+	fmt.Printf("Created feed follow successfully:\nFeed name: %s\n User: %s\n", feedFollow.FeedName, user.Name)
 
 	return nil
 }

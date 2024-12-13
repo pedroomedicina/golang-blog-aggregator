@@ -11,16 +11,7 @@ import (
 	"time"
 )
 
-func AddFeed(s *config.State, cmd command.Command) error {
-	if s.Config.CurrentUserName == "" {
-		return errors.New("no user is currently logged in")
-	}
-
-	user, err := s.Db.GetUser(context.Background(), s.Config.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("failed to fetch user: %w", err)
-	}
-
+func AddFeed(s *config.State, cmd command.Command, user database.User) error {
 	if len(cmd.Arguments) < 2 {
 		return errors.New("add feed command expects two arguments: name, url")
 	}

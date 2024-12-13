@@ -3,18 +3,13 @@ package handlers
 import (
 	"blog_aggregator/command"
 	"blog_aggregator/internal/config"
+	"blog_aggregator/internal/database"
 	"context"
 	"fmt"
 )
 
-func ListFollowing(s *config.State, _ command.Command) error {
-	username := s.Config.CurrentUserName
-	currentUser, err := s.Db.GetUser(context.Background(), username)
-	if err != nil {
-		return fmt.Errorf("error with current user %v", err)
-	}
-
-	feeds, err := s.Db.GetFeedFollowsForUser(context.Background(), currentUser.ID)
+func ListFollowing(s *config.State, _ command.Command, user database.User) error {
+	feeds, err := s.Db.GetFeedFollowsForUser(context.Background(), user.ID)
 	if err != nil {
 		return fmt.Errorf("failed fetching feeds followed by current user: %v", err)
 	}

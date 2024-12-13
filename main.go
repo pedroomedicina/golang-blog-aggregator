@@ -5,6 +5,7 @@ import (
 	"blog_aggregator/command/handlers"
 	"blog_aggregator/internal/config"
 	"blog_aggregator/internal/database"
+	"blog_aggregator/middleware"
 	"database/sql"
 	_ "github.com/lib/pq"
 	"log"
@@ -32,10 +33,11 @@ func main() {
 	commands.Register("reset", handlers.Reset)
 	commands.Register("users", handlers.ListUsers)
 	commands.Register("agg", handlers.Aggregate)
-	commands.Register("addfeed", handlers.AddFeed)
+	commands.Register("addfeed", middleware.LoggedIn(handlers.AddFeed))
 	commands.Register("feeds", handlers.ListFeeds)
-	commands.Register("follow", handlers.FollowFeed)
-	commands.Register("following", handlers.ListFollowing)
+	commands.Register("follow", middleware.LoggedIn(handlers.FollowFeed))
+	commands.Register("following", middleware.LoggedIn(handlers.ListFollowing))
+	commands.Register("unfollow", middleware.LoggedIn(handlers.UnfollowFeed))
 
 	args := os.Args[1:]
 	if len(args) == 0 {
