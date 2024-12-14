@@ -3,12 +3,18 @@ package handlers
 import (
 	"blog_aggregator/command"
 	"blog_aggregator/internal/config"
+	"blog_aggregator/internal/database"
 	"context"
+	"database/sql"
 	"encoding/xml"
+	"errors"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/jackc/pgconn"
 	"html"
 	"io"
 	"net/http"
+	"time"
 )
 
 type RSSFeed struct {
@@ -71,13 +77,69 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	return &feed, nil
 }
 
-func Aggregate(_ *config.State, _ command.Command) error {
-	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+func scrapeFeeds(s *config.State) {
+	nextFeedToFetch, err := s.Db.GetNextFeedToFetch(context.Background())
 	if err != nil {
-		return err
+		fmt.Printf("failed to fetch the next feed: %v\n", err)
 	}
 
-	fmt.Println(*feed)
+	fmt.Printf("Fetching feed: %s (%s)\n", nextFeedToFetch.Name, nextFeedToFetch.Url)
+	err = s.Db.MarkFeedFetched(context.Background(), nextFeedToFetch.ID)
+	if err != nil {
+		fmt.Printf("failed to mark feed as fetched: %v\n", err)
+	}
 
-	return nil
+	feed, err := fetchFeed(context.Background(), nextFeedToFetch.Url)
+	if err != nil {
+		fmt.Printf("failed to fetch feed: %v\n", err)
+	}
+
+	for _, item := range feed.Channel.Item {
+		uuid := uuid.New()
+		now := time.Now()
+		_, err := s.Db.CreatePost(context.Background(), database.CreatePostParams{
+			ID:          uuid,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+			Title:       item.Title,
+			Url:         item.Link,
+			Description: sql.NullString{String: html.UnescapeString(item.Description), Valid: item.Description != ""},
+			PublishedAt: sql.NullTime{Time: *rssParsedDate(item.PubDate), Valid: rssParsedDate(item.PubDate) != nil},
+			FeedID:      nextFeedToFetch.ID,
+		})
+
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				fmt.Printf("Post already exists: %s", item.Link)
+				continue
+			}
+			fmt.Printf("Error saving post: %v", err)
+		}
+	}
+}
+
+func Aggregate(s *config.State, cmd command.Command) error {
+	if len(cmd.Arguments) == 0 {
+		return errors.New("agg command expects a single argument: time_between_reqs")
+	}
+
+	timeBetweenRequests, err := time.ParseDuration(cmd.Arguments[0])
+	if err != nil {
+		return fmt.Errorf("invalid duration: %v", err)
+	}
+
+	fmt.Printf("Collecting feeds every %s\n", timeBetweenRequests)
+	ticker := time.NewTicker(timeBetweenRequests)
+	for ; ; <-ticker.C {
+		scrapeFeeds(s)
+	}
+}
+
+func rssParsedDate(date string) *time.Time {
+	t, err := time.Parse(time.RFC1123Z, date)
+	if err != nil {
+		return nil
+	}
+	return &t
 }
